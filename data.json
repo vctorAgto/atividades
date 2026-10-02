@@ -1,1 +1,158 @@
-{"version":1,"updatedAt":null,"items":[]}
+{
+ "version": 1,
+ "updatedAt": "2026-10-02T15:24:39.366694",
+ "items": [
+  {
+   "id": "exemplo1",
+   "type": "tarefa",
+   "title": "👋 Toque no círculo para concluir esta tarefa",
+   "notes": "Depois toque em Desfazer, se quiser. Isso é só um exemplo, pode excluir.",
+   "who": [
+    "victor"
+   ],
+   "date": "2026-10-02",
+   "time": null,
+   "priority": "normal",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790965419366,
+   "u": 1790965479366,
+   "by": "victor",
+   "deleted": false
+  },
+  {
+   "id": "exemplo2",
+   "type": "tarefa",
+   "title": "Toque em uma atividade para editar ou excluir",
+   "notes": "Abre a ficha com tipo, responsável, data, hora e detalhes.",
+   "who": [
+    "victor",
+    "vinicius",
+    "paulo"
+   ],
+   "date": "2026-10-02",
+   "time": null,
+   "priority": "normal",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790965359366,
+   "u": 1790965479366,
+   "by": "victor",
+   "deleted": false
+  },
+  {
+   "id": "exemplo3",
+   "type": "atividade",
+   "title": "Reunião da equipe (exemplo)",
+   "notes": "Criado escrevendo: amanhã 9h reunião da equipe pra todos",
+   "who": [
+    "victor",
+    "vinicius",
+    "paulo"
+   ],
+   "date": "2026-10-03",
+   "time": "09:00",
+   "priority": "normal",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790965299366,
+   "u": 1790965479366,
+   "by": "victor",
+   "deleted": false
+  },
+  {
+   "id": "exemplo4",
+   "type": "tarefa",
+   "title": "Revisar proposta do cliente (exemplo)",
+   "notes": "Criado escrevendo: Paulo: revisar proposta do cliente segunda urgente",
+   "who": [
+    "paulo"
+   ],
+   "date": "2026-10-05",
+   "time": null,
+   "priority": "alta",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790965239366,
+   "u": 1790965479366,
+   "by": "victor",
+   "deleted": false
+  },
+  {
+   "id": "exemplo5",
+   "type": "atividade",
+   "title": "Visita no cliente (exemplo)",
+   "notes": "Criado escrevendo: quinta 14h visita no cliente @vinicius",
+   "who": [
+    "vinicius"
+   ],
+   "date": "2026-10-08",
+   "time": "14:00",
+   "priority": "normal",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790965179366,
+   "u": 1790965479366,
+   "by": "victor",
+   "deleted": false
+  },
+  {
+   "id": "exemplo6",
+   "type": "tarefa",
+   "title": "Configurar a chave de sincronização",
+   "notes": "Toque no seu avatar (canto de cima) → cole o token → Salvar chave. Depois use 'Mandar link de acesso' para o Vinicius e o Paulo.",
+   "who": [
+    "victor"
+   ],
+   "date": null,
+   "time": null,
+   "priority": "alta",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790965119366,
+   "u": 1790965479366,
+   "by": "victor",
+   "deleted": false
+  },
+  {
+   "id": "exemplo7",
+   "type": "obs",
+   "title": "Dica: fale em vez de digitar",
+   "notes": "Toque no 🎤 do campo de cima e diga, por exemplo: \"amanhã às 10h ligar pro fornecedor\". Data, hora e pessoa são entendidas sozinhas. Comece com \"obs\" para virar uma observação como esta.",
+   "who": [],
+   "date": null,
+   "time": null,
+   "priority": "normal",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790965059366,
+   "u": 1790965479366,
+   "by": "victor",
+   "deleted": false
+  },
+  {
+   "id": "exemplo8",
+   "type": "obs",
+   "title": "Instale como app no celular",
+   "notes": "No Chrome ou Safari: menu → Adicionar à tela inicial. Abre em tela cheia, igual a um app.",
+   "who": [],
+   "date": null,
+   "time": null,
+   "priority": "normal",
+   "done": false,
+   "doneAt": null,
+   "doneBy": null,
+   "c": 1790964999366,
+   "u": 1790965479366,
+   "by": "paulo",
+   "deleted": false
+  }
+ ]
+}
