@@ -1,158 +1,24 @@
 {
- "version": 1,
- "updatedAt": "2026-10-02T15:24:39.366694",
- "items": [
-  {
-   "id": "exemplo1",
-   "type": "tarefa",
-   "title": "👋 Toque no círculo para concluir esta tarefa",
-   "notes": "Depois toque em Desfazer, se quiser. Isso é só um exemplo, pode excluir.",
-   "who": [
-    "victor"
-   ],
-   "date": "2026-10-02",
-   "time": null,
-   "priority": "normal",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790965419366,
-   "u": 1790965585271,
-   "by": "victor",
-   "deleted": true
-  },
-  {
-   "id": "exemplo2",
-   "type": "tarefa",
-   "title": "Toque em uma atividade para editar ou excluir",
-   "notes": "Abre a ficha com tipo, responsável, data, hora e detalhes.",
-   "who": [
-    "victor",
-    "vinicius",
-    "paulo"
-   ],
-   "date": "2026-10-02",
-   "time": null,
-   "priority": "normal",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790965359366,
-   "u": 1790965585271,
-   "by": "victor",
-   "deleted": true
-  },
-  {
-   "id": "exemplo3",
-   "type": "atividade",
-   "title": "Reunião da equipe (exemplo)",
-   "notes": "Criado escrevendo: amanhã 9h reunião da equipe pra todos",
-   "who": [
-    "victor",
-    "vinicius",
-    "paulo"
-   ],
-   "date": "2026-10-03",
-   "time": "09:00",
-   "priority": "normal",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790965299366,
-   "u": 1790965585271,
-   "by": "victor",
-   "deleted": true
-  },
-  {
-   "id": "exemplo4",
-   "type": "tarefa",
-   "title": "Revisar proposta do cliente (exemplo)",
-   "notes": "Criado escrevendo: Paulo: revisar proposta do cliente segunda urgente",
-   "who": [
-    "paulo"
-   ],
-   "date": "2026-10-05",
-   "time": null,
-   "priority": "alta",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790965239366,
-   "u": 1790965585271,
-   "by": "victor",
-   "deleted": true
-  },
-  {
-   "id": "exemplo5",
-   "type": "atividade",
-   "title": "Visita no cliente (exemplo)",
-   "notes": "Criado escrevendo: quinta 14h visita no cliente @vinicius",
-   "who": [
-    "vinicius"
-   ],
-   "date": "2026-10-08",
-   "time": "14:00",
-   "priority": "normal",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790965179366,
-   "u": 1790965585271,
-   "by": "victor",
-   "deleted": true
-  },
-  {
-   "id": "exemplo6",
-   "type": "tarefa",
-   "title": "Configurar a chave de sincronização",
-   "notes": "Toque no seu avatar (canto de cima) → cole o token → Salvar chave. Depois use 'Mandar link de acesso' para o Vinicius e o Paulo.",
-   "who": [
-    "victor"
-   ],
-   "date": null,
-   "time": null,
-   "priority": "alta",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790965119366,
-   "u": 1790965585271,
-   "by": "victor",
-   "deleted": true
-  },
-  {
-   "id": "exemplo7",
-   "type": "obs",
-   "title": "Dica: fale em vez de digitar",
-   "notes": "Toque no 🎤 do campo de cima e diga, por exemplo: \"amanhã às 10h ligar pro fornecedor\". Data, hora e pessoa são entendidas sozinhas. Comece com \"obs\" para virar uma observação como esta.",
-   "who": [],
-   "date": null,
-   "time": null,
-   "priority": "normal",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790965059366,
-   "u": 1790965585271,
-   "by": "victor",
-   "deleted": true
-  },
-  {
-   "id": "exemplo8",
-   "type": "obs",
-   "title": "Instale como app no celular",
-   "notes": "No Chrome ou Safari: menu → Adicionar à tela inicial. Abre em tela cheia, igual a um app.",
-   "who": [],
-   "date": null,
-   "time": null,
-   "priority": "normal",
-   "done": false,
-   "doneAt": null,
-   "doneBy": null,
-   "c": 1790964999366,
-   "u": 1790965585271,
-   "by": "paulo",
-   "deleted": true
+ "version": 2,
+ "updatedAt": "2026-10-02T19:12:05.470Z",
+ "vault": {},
+ "invites": {
+  "murcas7wv": {
+   "for": "victor",
+   "box": {
+    "iv": "47htEyXHkXVhCyoT",
+    "ct": "E0gqYWGYai10cha54i_EswRYh8KM4JrAWnz4MPVnbh9U4b_a_8K0wtFOLED_tAiU7bpB-gmr65dAWSYRurbgyGWUyw"
+   },
+   "u": 1790968325468,
+   "exp": 1793560325468
   }
- ]
+ },
+ "secret": {
+  "iv": "pXgi7jvaIz6z-vfF",
+  "ct": "3Vh8WzkyUaPO2fa9ViRNWAnIYhtr9hVCjPVINCypyOSU8UIi_NgIR9VXfsdIp9z56tdVsjKKD1RxBW4bi5S9bLm8_k8_3b0XUVB1QIrjIEmPhRWBoT8TyfjMd3odsQh7EoTS6cScn0kAUDZQCxldLb21U5Og86ESxw"
+ },
+ "enc": {
+  "iv": "suURlimSsz5VQK81",
+  "ct": "1HGiIYxkWvqwMn5j-Vt8gYezhNZba_XGzYk5S3YDA_E2rwYRqGAdKTHk8SjaalxsJKk37xtdvm8UWgRgriv9WghkhF6jXuuhoFiUT_38yNRv02dSJ30ysG6DiKIm40TXWjLK3l5eanuNTPiGRz8DsvY9ve-6VRtWsJQM2UqRu0qqkVMRO9_JoxWQNx46P5M2IMWmAmXbG_4ai1zO22KP5R0x6nmgrC2NhUpJZReXY3VLZA4t4n8XYC8ngXzQvXDc29hbDZ6k12hmusYbfDtzIB-PloXbSguu2MVkqvgxuejAFTD58wES8sbV4fyc-lK15TlznosUOWnwpQuwvDjOJAYn5XucgHIr7SYPHX-WnvWZkWcVTbcZD5nUk7daiNLqPDNiO-Mf-0yKsqbBmWzAo4ScDszhXj2FdRk0DmYGB2e0gOvrwIfqNuiO_Eg7FNboe5utXyFl6v8a-O4t84v7Rtu0X88vOmhMl-W9NBK5qyAl4rLaBzWFr6N2YKvx8RXPL6D6ggxhYnhqZsyTR-2O4DtTJA_BjrasMeGoANhlhhtqoae0k2TAiLYD6qIUome-CaqEhhY5aaAunLqRq1p5uBLTrwi2ZE-T_v9R3-HHCTVKe0qHrJOc2fuFqchbWIgZAPGyENJaLnLz38hOe4EMMNwSEPerEARg0MNV7XXSbw0oSKCptjrW9NIfS6cdJaTRZKnr63BbdlKNJpw7GXmnAAyPeuf0pX73YCZg-mDXQBMmQDVaD2MTnbgm5C7JSjNc6kLrcr9x_TZUQ9nkJiTWSbQmbb7DyGoOPurjVPvcBgmHC580aFefCjXVt4MbFhnVr6KZ7fj_pi5sjrncH0KluiMdggcIgyGPEhpDAlBPhx5SD5pkKQ_VjnUYa-cc4UVGN4x9iRHofsq_sAUX1jpbXyejqrsPh4f5usyIAOR_vcl5Ds0awUu_AeT7zIEk0q7Y373S9LYvpqTeapCdsU0Hz-cwlSuRLxVZU06p-mUH2DMgFeUEF2HhhH4qjtIbE8J8NlpnoSINPseFVOF9fGbkmJotAlHvHT49yiti-k7fFEEqmJnFrRl-54zqldBZHy9IcwGYdQVcaF-5Xf1GCrgLkGcoeq27oQC8tTq6c_-KFNlT6NMD04lrqTKVLffMN3OmyXTEXAXygSHSfsl3amHLMZZTncriYMgiOk_YPzma5CuWRjLF7JlcDrYGqcy0qMAAI4VfLbz8ZrY4QtRzqKsmV6BhskAQQ0wJ6c2ycpI2CIcB8FaEcxj_RVaoLKRVo76B1OhFZaHDIZzATeFXCY2yfeIuy3aJYrkyitUsc8XSrwTOx3vLB9-tOJXsxLIBxX13MdOY_5_c8Y-uusajOGqHsES0Ts7I657ElfqeNmHxR6GzAApl6b2dXhDuQzYguvCqw0zdUxeZPNgDCeW_H-BPUs-TQiyqG-9WeMUWU9xVGfjypbBdgBGRiwbZ6Pwgby_L_EghS4raKBxNB3y4JeT3JlRchQJzSc93cCB_1qZJGscuNfEFF7eF3C_eq8TbjTGTiiS0WOoESmukH4slqp7amPlZRwtqiV587tt90r-IM8xIE_5cZd6LixUUzyE7w5Kpj5pvA71BlZYJBGsgZMm5x48s56Fj7mafyZdR_V2Zyp_Bgp71k0EDj7Cg-r1GXq3SYL8haD5dmqdJd-CIyIaqIvCWMNn9DM5xMWp00u_4elQtYZdkEHRaeW7dZhuzAnFyutG_7V38vpxHjQx5pt8nQiReqD6ywHFaAcwPVj1dg8Ij53z4tLEGhYiK_3HTsM3z_X4-XCFCtLF0YsvI9d5730LLMM0QpuCMFFdwXC3Aub9kzhh9PQ-mGpRaEdIXHmejyS6JnhQUi1C0KgIm_A3znWyt6GV65G7crNkFErI0NWWlWxfVHIB30cw98DpFONbT72x8lPaCxJp76fi_6n-K8rEKk1DGF14FXgXH_yVf05HS7c1hSBg0qCFANC4xuu6c7btnjoT3RBKL4b8Z4wNNCsswlVQXzQfKuUmR-yKpMXbsKHRgEjBu-aFxN9husPoMWPryaSYzMrPu1CSe_Ak6vM2UqWzUyEgOrnwy9-ZLJnwdQLXGhGKWIg6o4CUU5X8wrkgrvQZ79JYk-pqqiOcxxjVMP6Yoah9K7-9SCG7LxTIjO6x-4jC240f-vj4WBDtwjHriQ5KrYGHbImIOcwCJW6mGktycqbOkZdjeVAqLIL-jH9VlldKCpQkOsfco31g5bY1piYM2enwpKjUwdUjPzho8CmDNxkggzOrePAjcAjRrIhkPipoAORpFWBBJysMlBIn27BY8GvtdTJVH15KIyJZEKLuoJcKzOdQqa1fi5a2aE3-v3PwX_KbP-3_I-_t7rRv-QDQfHkd-1qlJGCOJbwMeoKwHh57qtleHTyCHq2JR8EcG6KawGsFx2wmlOw98bTb6v3Rbd90t79RfjGqNRW-RZrtkxhkuvGB1ZdPwjunysG4DxfcrSmF8LLfRLTz1J0u-0HciqeKNB2Ff16SCVJRdkZe_WIucpc3UJh4_ZsUkqWNSIL3D9Jnlis6KKqOl2WBooYaIeHR98vAcVDNR-aIXOziZ_eIi9NQgRvihTI2zxba9aKkMCZ-5u6M6efBlYlNkhjkNck82sWTJZFunyBQintVBKJKrkpkoNBbFAxLW4VYzWG2Xp8xEnLp_qDbcSj58NalZnOBeJMZ09C3JKUU"
+ }
 }
