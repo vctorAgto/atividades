@@ -820,7 +820,15 @@ async function gate(){
     lockScreen(`<h2>Olá, ${esc(PERSON[S.me].name)}</h2>
       <p class="muted">Confirme que é você para abrir.</p>
       <button class="btn primary block" id="gateBtn">${I.face}Desbloquear com rosto ou digital</button>`);
-    const go = () => bioVerify().then(openApp).catch(() => { $('#lockErr').textContent = 'Não deu certo. Toque para tentar de novo.'; });
+    const go = () => bioVerify().then(openApp).catch(() => {
+      $('#lockErr').innerHTML = `Não deu certo. Toque para tentar de novo.
+        <button class="linkbtn" id="gateRedo" style="display:block;margin:12px auto 0">Cadastrar de novo</button>`;
+      $('#gateRedo').onclick = () => {
+        if(!confirm('Para cadastrar de novo, vai pedir a chave de acesso outra vez. Continuar?')) return;
+        ['atv.bio', 'atv.bioSkip', 'atv.key'].forEach(k => localStorage.removeItem(k));
+        S.key = ''; gate();
+      };
+    });
     $('#gateBtn').onclick = go;
     go(); // tenta na hora; se o navegador exigir um toque, fica o botão
     return;
@@ -854,7 +862,7 @@ function openSettings(first){
     <div class="lbl">Rosto / digital</div>
     <p class="help">${lsGet('atv.bio', null) ? '🔒 Ativado. O app pede seu rosto ou digital depois de 1 hora sem uso.'
       : 'Desligado neste aparelho, o app abre direto.'}</p>
-    ${!lsGet('atv.bio', null) && bioOk !== false ? `<div class="row" style="margin-top:8px"><button class="btn small" data-act="bio-on">${I.face}Ativar rosto ou digital</button></div>` : ''}
+    ${bioOk !== false ? `<div class="row" style="margin-top:8px"><button class="btn small" data-act="bio-on">${I.face}${lsGet('atv.bio', null) ? 'Cadastrar rosto de novo' : 'Ativar rosto ou digital'}</button></div>` : ''}
     <div class="lbl">Aparência</div>
     <div class="seg">${[['', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="${(lsGet('atv.theme', '') === v) ? 'on' : ''}" data-act="theme" data-v="${v}">${l}</button>`).join('')}</div>`}
   `, !first);
