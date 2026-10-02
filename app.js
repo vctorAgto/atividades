@@ -979,7 +979,7 @@ function openSettings(){
       const has = personCreds(p.id).length > 0;
       return `<div class="invite"><span>${avatar(p.id, 'sm')}${p.full}</span><span class="row">
         ${has ? '<span class="tag ok">🔒 cadastrado</span>' : '<span class="tag">sem rosto</span>'}
-        ${p.id !== S.me ? `<button class="btn small" data-act="invite" data-v="${p.id}">${I.share}${has ? 'Novo celular' : 'Convidar'}</button>` : ''}
+        <button class="btn small" data-act="invite" data-v="${p.id}">${I.share}${p.id === S.me ? 'Outro aparelho' : has ? 'Novo celular' : 'Convidar'}</button>
       </span></div>`;
     }).join('')}
     <p class="help">O convite vale <b>uma vez</b> e por 7 dias: a pessoa abre, cadastra o rosto e o link para de funcionar.</p>
@@ -1063,7 +1063,7 @@ document.addEventListener('click', e => {
     case 'invite': {
       const who = d.v;
       createInvite(who).then(link => {
-        const text = `${PERSON[who].name}, esse é o seu convite para as atividades da equipe. Abra no seu celular e cadastre seu rosto (vale uma vez): ${link}`;
+        const text = who === S.me ? `Abra no outro aparelho para entrar nas atividades (vale uma vez): ${link}` : `${PERSON[who].name}, esse é o seu convite para as atividades da equipe. Abra no seu celular e cadastre seu rosto (vale uma vez): ${link}`;
         if(navigator.share) navigator.share({ title: 'Convite · Atividades', text }).catch(() => {});
         else navigator.clipboard.writeText(text).then(() => toast('Convite copiado, mande no WhatsApp'));
       });
