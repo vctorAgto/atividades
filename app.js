@@ -364,7 +364,7 @@ function section(title, list, cls, opts){
   if(!list.length) return '';
   opts = opts || {};
   const shown = opts.limit ? list.slice(0, opts.limit) : list;
-  return `<section class="sec ${cls || ''}" id="sec-${cls || ''}">
+  return `<section class="sec sec-${cls || ''} ${cls || ''}" id="sec-${cls || ''}">
     <div class="sec-title"><h3>${title}</h3><small>${opts.sub || list.length}</small></div>
     <div class="list">${shown.map(i => itemHTML(i, opts)).join('')}
       ${opts.limit && list.length > opts.limit ? `<button class="more" data-act="${opts.moreAct}">Ver mais ${list.length - opts.limit}</button>` : ''}
@@ -440,7 +440,7 @@ function homeHTML(){
     <div class="stats">
       <button class="stat late" data-act="jump" data-to="sec-late"><div class="n">${late.length}</div><div class="l">Atrasadas</div></button>
       <button class="stat today" data-act="jump" data-to="sec-today"><div class="n">${todayAll.filter(i => !i.done).length}</div><div class="l">Hoje</div></button>
-      <button class="stat" data-act="jump" data-to="sec-week"><div class="n">${tomorrow.length + week.length}</div><div class="l">7 dias</div></button>
+      <button class="stat" data-act="jump" data-to="sec-next"><div class="n">${tomorrow.length + week.length}</div><div class="l">7 dias</div></button>
       <button class="stat obs" data-act="view" data-view="notas"><div class="n">${notes.length}</div><div class="l">Notas</div></button>
     </div>
     ${todayTasks ? `<div class="progress"><i style="width:${pct}%"></i></div>
@@ -453,7 +453,7 @@ function homeHTML(){
     section('Atrasadas', late, 'late') +
     section('Hoje', todayAll, 'today', { hideDate: true, sub: todayTasks ? `${doneToday}/${todayTasks}` : todayAll.length }) +
     section('Amanhã', tomorrow, 'tomorrow', { hideDate: true }) +
-    section('Próximos dias', week, 'week') +
+    section('Próximos dias', week, 'next') +
     section('Mais adiante', later, 'later', S.showAllLater ? {} : { limit: 4, moreAct: 'more-later' }) +
     section('Sem data', nodate, 'nodate') +
     (notes.length ? section('Últimas observações', notes.slice(0, 3), 'notes', {}) : '');

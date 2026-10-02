@@ -17,9 +17,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790965419366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "victor",
-   "deleted": false
+   "deleted": true
   },
   {
    "id": "exemplo2",
@@ -38,9 +38,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790965359366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "victor",
-   "deleted": false
+   "deleted": true
   },
   {
    "id": "exemplo3",
@@ -59,9 +59,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790965299366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "victor",
-   "deleted": false
+   "deleted": true
   },
   {
    "id": "exemplo4",
@@ -78,9 +78,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790965239366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "victor",
-   "deleted": false
+   "deleted": true
   },
   {
    "id": "exemplo5",
@@ -97,9 +97,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790965179366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "victor",
-   "deleted": false
+   "deleted": true
   },
   {
    "id": "exemplo6",
@@ -116,9 +116,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790965119366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "victor",
-   "deleted": false
+   "deleted": true
   },
   {
    "id": "exemplo7",
@@ -133,9 +133,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790965059366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "victor",
-   "deleted": false
+   "deleted": true
   },
   {
    "id": "exemplo8",
@@ -150,9 +150,9 @@
    "doneAt": null,
    "doneBy": null,
    "c": 1790964999366,
-   "u": 1790965479366,
+   "u": 1790965585271,
    "by": "paulo",
-   "deleted": false
+   "deleted": true
   }
  ]
 }
