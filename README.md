@@ -10,9 +10,9 @@ Site: https://vctoragto.github.io/atividades/
 - **Campo rápido (tela Hoje):** escreva ou toque no 🎤 e fale. O app entende:
   - datas: `hoje`, `amanhã`, `depois de amanhã`, `sexta`, `próxima segunda`, `dia 15`, `15/10`, `semana que vem`, `em 3 dias`
   - horas: `14h`, `14:30`, `às 9`, `meio-dia`, `de manhã`, `à tarde`, `à noite`
-  - pessoas: `@paulo`, `Paulo: revisar contrato`, `tarefa do Vinicius ...`, `pra todos`
+  - pessoas: `@paulo`, `Paulo: trocar lâmpada`, `tarefa do Vinicius ...`, `pra todos`
   - `urgente` ou `!` deixa a tarefa urgente; se começar com `obs:` vira observação
-  - exemplo: `amanhã às 14h reunião com cliente @paulo urgente`
+  - exemplo: `sábado às 8h limpeza do salão @paulo urgente`
 - **Hoje:** atrasadas, hoje, amanhã, próximos dias e o que está sem data. Filtro por pessoa.
 - **Agenda:** os próximos dias numa faixa e o calendário do mês, com bolinhas da cor de cada pessoa.
 - **Notas:** as observações e o histórico do que foi concluído.

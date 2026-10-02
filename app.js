@@ -396,7 +396,7 @@ function renderView(){
           <button class="roundbtn primary" id="qGo" aria-label="Adicionar" disabled>${I.send}</button>
         </div>
         <div class="qprev" id="qPrev" hidden></div>
-        <div class="qhint" id="qHint">Ex.: <i>amanhã 14h reunião com cliente @paulo</i> · <i>obs: cliente pediu proposta</i></div>
+        <div class="qhint" id="qHint">Ex.: <i>sábado 8h limpeza do salão @paulo</i> · <i>obs: trocar lâmpada da entrada</i></div>
       </div>
       <div id="homeBody"></div>`;
     bindQuick();
@@ -654,13 +654,13 @@ function editorHTML(){
   const d = E.draft;
   return `<div class="sh-head"><h2>${E.isNew ? 'Nova' : d.type === 'obs' ? 'Observação' : 'Editar'}</h2><button class="xbtn" data-act="close-sheet">${I.x}</button></div>
     <div class="titlebox">
-      <textarea id="eTitle" rows="1" placeholder="${E.isNew ? 'Escreva ou fale… ex.: sexta 10h visita no cliente @vinicius' : 'Título'}"></textarea>
+      <textarea id="eTitle" rows="1" placeholder="${E.isNew ? 'Escreva ou fale… ex.: quinta 19h conferir o som @vinicius' : 'Título'}"></textarea>
       ${SR ? `<button class="roundbtn" id="eMic" aria-label="Falar">${I.mic}</button>` : ''}
     </div>
     <div class="parsed-as" id="parsedAs"></div>
     <div id="eCtl">${ctlHTML()}</div>
     <div class="lbl">Detalhes</div>
-    <textarea class="inp" id="eNotes" rows="3" placeholder="Observações, contexto, links…">${esc(d.notes || '')}</textarea>
+    <textarea class="inp" id="eNotes" rows="3" placeholder="Detalhes, o que precisa levar, links…">${esc(d.notes || '')}</textarea>
     <div class="sh-actions">
       ${!E.isNew ? `<button class="btn danger" data-act="e-del" aria-label="Excluir">${I.trash}</button>` : ''}
       ${!E.isNew && d.type !== 'obs' ? `<button class="btn ok" data-act="e-done">${I.check}${d.done ? 'Reabrir' : 'Concluir'}</button>` : ''}
