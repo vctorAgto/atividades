@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atividades da Equipe</title>
+<meta name="description" content="Agenda, tarefas e observações do Victor, Vinicius e Paulo.">
+<meta name="theme-color" content="#f4ecda" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1813" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Atividades">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <img src="logo.png" alt="" class="brand-icon">
+      <div class="brand-text">
+        <p class="eyebrow">Equipe · Atividades</p>
+        <h1 id="viewTitle">Hoje</h1>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="sync-pill" id="syncPill" data-act="settings" aria-label="Sincronização"><span class="dot"></span><span class="txt">…</span></button>
+      <button class="me-btn" id="meBtn" data-act="settings" aria-label="Ajustes"></button>
+    </div>
+  </header>
+
+  <main id="view"></main>
+</div>
+
+<nav class="tabbar" aria-label="Navegação">
+  <button data-view="hoje" class="tab"><span class="ti" data-icon="home"></span><span>Hoje</span></button>
+  <button data-view="agenda" class="tab"><span class="ti" data-icon="calendar"></span><span>Agenda</span></button>
+  <button class="fab" data-act="new" aria-label="Nova atividade"><span class="ti" data-icon="plus"></span></button>
+  <button data-view="notas" class="tab"><span class="ti" data-icon="note"></span><span>Notas</span></button>
+  <button data-view="equipe" class="tab"><span class="ti" data-icon="users"></span><span>Equipe</span></button>
+</nav>
+
+<div class="sheet-wrap" id="sheet" hidden>
+  <div class="sheet-backdrop" data-act="close-sheet"></div>
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="app.js?v=1"></script>
+</body>
+</html>

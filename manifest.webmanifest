@@ -1,0 +1,10 @@
+{
+  "name": "Atividades da Equipe",
+  "short_name": "Atividades",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4ecda",
+  "theme_color": "#f4ecda",
+  "icons": [{ "src": "logo.png", "sizes": "any", "type": "image/png", "purpose": "any" }]
+}
