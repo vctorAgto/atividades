@@ -31,6 +31,7 @@ const I = {
   trash: SV('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   flag: SV('<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'),
   task: SV('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12l2.5 2.5 4.5-5"/>'),
+  face: SV('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 16c1.5 1 3.5 1 5 0"/>'),
   share: SV('<path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/>')
 };
 
@@ -709,6 +710,97 @@ function saveEditor(){
   }
 }
 
+/* ---------- Bloqueio com rosto / digital (do próprio aparelho) ---------- */
+// Usa o desbloqueio do celular (Face ID, digital, Windows Hello). Nada de rosto sai do aparelho:
+// o site só pede para o aparelho confirmar que é o dono, e guarda o id da credencial aqui.
+const LOCK_AFTER = 60 * 60 * 1000; // pede de novo depois de 1 hora sem usar
+const rnd = n => crypto.getRandomValues(new Uint8Array(n));
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+let bioOk = null;
+async function bioAvailable(){
+  if(bioOk !== null) return bioOk;
+  try { bioOk = !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+  catch(e){ bioOk = false; }
+  return bioOk;
+}
+async function bioRegister(){
+  const p = PERSON[S.me] || { full: 'Equipe' };
+  const cred = await navigator.credentials.create({ publicKey: {
+    challenge: rnd(32),
+    rp: { name: 'Atividades da Equipe' },
+    user: { id: new TextEncoder().encode((S.me || 'eu') + '-' + uid()), name: p.full, displayName: p.full },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+    timeout: 60000, attestation: 'none'
+  }});
+  lsSet('atv.bio', b64u(cred.rawId));
+  markSeen();
+}
+async function bioVerify(){
+  const id = lsGet('atv.bio', null);
+  await navigator.credentials.get({ publicKey: {
+    challenge: rnd(32), allowCredentials: [{ type: 'public-key', id: unb64u(id) }],
+    userVerification: 'required', timeout: 60000
+  }});
+  markSeen();
+}
+function markSeen(){ lsSet('atv.seen', Date.now()); }
+function needsUnlock(){ return !!lsGet('atv.bio', null) && Date.now() - lsGet('atv.seen', 0) > LOCK_AFTER; }
+// Portão de entrada: nada aparece atrás até a pessoa escolher o nome e confirmar com rosto/digital.
+function lockScreen(inner){
+  const el = $('#lock');
+  el.innerHTML = `<div class="lock-box">
+      <img src="logo.png" alt="" class="lock-logo">
+      <p class="eyebrow">Equipe · Atividades</p>
+      ${inner}
+      <p class="lock-err" id="lockErr"></p>
+    </div>`;
+  el.hidden = false;
+  document.body.classList.add('locked');
+}
+function openApp(){
+  $('#lock').hidden = true;
+  document.body.classList.remove('locked');
+  markSeen();
+  refresh();
+  pull();
+}
+async function gate(){
+  if(!S.me){
+    lockScreen(`<h2>Quem é você?</h2>
+      <p class="muted">Escolha seu nome. Fica guardado neste aparelho.</p>
+      <div class="who-grid">${PEOPLE.map(p => `<button class="who-opt" data-gate-me="${p.id}">${avatar(p.id, 'lg')}${p.full}</button>`).join('')}</div>`);
+    return;
+  }
+  const hasBio = !!lsGet('atv.bio', null);
+  if(!hasBio){
+    if(!(await bioAvailable())){ openApp(); return; } // aparelho sem rosto/digital: entra direto
+    lockScreen(`<h2>Olá, ${esc(PERSON[S.me].name)}</h2>
+      <p class="muted">Cadastre seu rosto ou digital para proteger o app. Seu rosto não sai do aparelho, quem confere é o próprio celular.</p>
+      <button class="btn primary block" id="gateBtn">${I.face}Cadastrar rosto ou digital</button>
+      <button class="linkbtn" id="gateSwap" style="margin-top:14px">Não sou ${esc(PERSON[S.me].name)}</button>`);
+    $('#gateBtn').onclick = () => bioRegister().then(() => { openApp(); toast('Pronto! Protegido com rosto/digital 🔒'); })
+      .catch(() => { $('#lockErr').textContent = 'Não deu certo. Toque para tentar de novo.'; });
+    $('#gateSwap').onclick = () => { S.me = null; localStorage.removeItem('atv.me'); gate(); };
+    return;
+  }
+  if(needsUnlock()){
+    lockScreen(`<h2>Olá, ${esc(PERSON[S.me].name)}</h2>
+      <p class="muted">Confirme que é você para abrir.</p>
+      <button class="btn primary block" id="gateBtn">${I.face}Desbloquear com rosto ou digital</button>`);
+    const go = () => bioVerify().then(openApp).catch(() => { $('#lockErr').textContent = 'Não deu certo. Toque para tentar de novo.'; });
+    $('#gateBtn').onclick = go;
+    go(); // tenta na hora; se o navegador exigir um toque, fica o botão
+    return;
+  }
+  openApp();
+}
+$('#lock').addEventListener('click', e => {
+  const b = e.target.closest('[data-gate-me]');
+  if(b){ S.me = b.dataset.gateMe; lsSet('atv.me', S.me); gate(); }
+});
+
 /* ---------- Folha de ajustes ---------- */
 function openSettings(first){
   const link = id => location.origin + location.pathname + '#k=' + encodeURIComponent(S.key) + '&eu=' + id;
@@ -728,6 +820,9 @@ function openSettings(first){
       <p class="help" style="margin-bottom:6px">Quem abrir o link já entra conectado (com a chave). Mande só para a equipe.</p>
       ${PEOPLE.filter(p => p.id !== S.me).map(p => `<div class="invite"><span>${avatar(p.id, 'sm')}${p.full}</span>
         <button class="btn small" data-act="invite" data-link="${esc(link(p.id))}" data-name="${p.name}">${I.share}Enviar</button></div>`).join('')}` : ''}
+    <div class="lbl">Rosto / digital</div>
+    <p class="help">${lsGet('atv.bio', null) ? '🔒 Ativado. O app pede seu rosto ou digital depois de 1 hora sem uso.'
+      : 'Este aparelho não tem rosto ou digital disponível para sites, então o app abre direto.'}</p>
     <div class="lbl">Aparência</div>
     <div class="seg">${[['', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="${(lsGet('atv.theme', '') === v) ? 'on' : ''}" data-act="theme" data-v="${v}">${l}</button>`).join('')}</div>`}
   `, !first);
@@ -841,9 +936,13 @@ if(!TITLES[S.view]) S.view = 'hoje';
 if(S.who !== 'todos' && !PERSON[S.who]) S.who = 'todos';
 setSync(S.key ? 'saving' : 'local');
 renderView();
-if(!S.me) openSettings(true);
-pull();
-setInterval(() => { if(!document.hidden && !saving) pull(); }, 30000);
+gate();
+setInterval(() => { if(!document.hidden && !saving && $('#lock').hidden) pull(); }, 30000);
 setInterval(() => { if(!document.hidden && $('#sheet').hidden) refresh(); }, 60000);
-document.addEventListener('visibilitychange', () => { if(!document.hidden) pull(); });
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){ if($('#lock').hidden) markSeen(); return; }
+  if($('#lock').hidden && needsUnlock()) gate();
+  else if($('#lock').hidden){ markSeen(); pull(); }
+});
+setInterval(() => { if(!document.hidden && $('#lock').hidden) markSeen(); }, 60000);
 window.addEventListener('online', () => pull());

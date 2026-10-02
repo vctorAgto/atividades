@@ -381,6 +381,21 @@ input.inp:focus,textarea.inp:focus{outline:none;border-color:var(--accent);box-s
 .invite span{display:flex;align-items:center;gap:8px;font-weight:600;font-size:.88rem;}
 .small{padding:7px 12px;font-size:.78rem;border-radius:10px;}
 
+/* ---------- Tela de bloqueio ---------- */
+.lock{
+  position:fixed;inset:0;z-index:80;background-color:var(--bg);
+  background-image:radial-gradient(var(--dots) 1px, transparent 1px);background-size:22px 22px;
+  display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;
+}
+.lock-box{width:100%;max-width:340px;text-align:center;}
+.lock-logo{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--paper);box-shadow:var(--shadow);margin-bottom:14px;}
+.lock-box h2{font-size:1.8rem;margin:2px 0 4px;}
+.lock-box .muted{margin:0 0 22px;font-size:.92rem;}
+.lock .who-grid{text-align:left;}
+body.locked{overflow:hidden;}
+body.locked .app,body.locked .tabbar{visibility:hidden;}
+.lock-err{color:var(--late);font-size:.84rem;min-height:1.2em;margin-top:10px;}
+
 /* ---------- Toast ---------- */
 .toast{
   position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabbar-h) + 22px + env(safe-area-inset-bottom));
