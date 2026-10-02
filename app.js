@@ -136,7 +136,7 @@ async function fetchRemote(){
       headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + S.key }, cache: 'no-store'
     });
     if(r.status === 404) return { sha: null, items: [], people: {} };
-    if(r.status === 401){ S.key = ''; localStorage.removeItem('atv.key'); gate(); throw new Error('Chave inválida'); }
+    if(r.status === 401) throw new Error('Chave inválida');
     if(r.status === 403) throw new Error('Chave sem permissão');
     if(!r.ok) throw new Error('GitHub respondeu ' + r.status);
     const j = await r.json();
@@ -797,21 +797,6 @@ function openApp(){
   pull();
 }
 async function gate(){
-  // Sem a chave (que vem no link de acesso), o app não abre: é só da equipe.
-  if(!S.key){
-    lockScreen(`<h2>Só da equipe</h2>
-      <p class="muted">Este app é só do Victor, do Vinicius e do Paulo. Para entrar, abra o <b>link de acesso</b> que um deles te mandou.</p>
-      <input class="inp" type="password" id="gateKey" placeholder="ou cole a chave aqui (github_pat_…)" autocomplete="off">
-      <button class="btn primary block" id="gateKeyBtn" style="margin-top:12px">Entrar</button>`);
-    $('#gateKeyBtn').onclick = async () => {
-      const k = $('#gateKey').value.trim();
-      if(!k) return;
-      $('#lockErr').textContent = 'Conferindo…';
-      if(await checkKey(k)){ S.key = k; lsSet('atv.key', k); gate(); }
-      else $('#lockErr').textContent = 'Essa chave não funcionou. Confira e tente de novo.';
-    };
-    return;
-  }
   if(!S.me){
     try { await pull(); } catch(e){}
     lockScreen(`<h2>Quem é você?</h2>
