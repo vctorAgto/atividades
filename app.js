@@ -79,6 +79,7 @@ function avatars(who, cls){ return who && who.length ? `<span class="avs">${who.
 /* ---------- Estado ---------- */
 const S = {
   items: lsGet('atv.items', []),
+  people: lsGet('atv.people', {}), // { victor: { creds: [ids], u } } — de quem é cada rosto
   sha: null,
   me: lsGet('atv.me', null),
   key: lsGet('atv.key', ''),
@@ -93,7 +94,7 @@ const S = {
 };
 { const d = new Date(); S.cal = { y: d.getFullYear(), m: d.getMonth() }; }
 
-function persist(){ lsSet('atv.items', S.items); lsSet('atv.dirty', S.dirty); lsSet('atv.lastSync', S.lastSync); }
+function persist(){ lsSet('atv.people', S.people); lsSet('atv.items', S.items); lsSet('atv.dirty', S.dirty); lsSet('atv.lastSync', S.lastSync); }
 const live = () => S.items.filter(i => !i.deleted);
 const byId = id => S.items.find(i => i.id === id);
 function touch(it){ it.u = Date.now(); it.by = S.me; }
@@ -121,6 +122,11 @@ function merge(a, b){
   for(const r of b){ const l = map.get(r.id); if(!l || (r.u || 0) > (l.u || 0)) map.set(r.id, r); }
   return [...map.values()];
 }
+function mergePeople(a, b){
+  const out = Object.assign({}, a);
+  for(const [id, v] of Object.entries(b || {})) if(!out[id] || (v.u || 0) > (out[id].u || 0)) out[id] = v;
+  return out;
+}
 // Itens apagados ficam como "lápide" por 45 dias para os outros aparelhos saberem que foram apagados.
 function prune(list){ const lim = Date.now() - 45 * 864e5; return list.filter(i => !i.deleted || (i.u || 0) > lim); }
 
@@ -129,18 +135,19 @@ async function fetchRemote(){
     const r = await fetch(`${API}?ref=${CFG.branch}&t=${Date.now()}`, {
       headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + S.key }, cache: 'no-store'
     });
-    if(r.status === 404) return { sha: null, items: [] };
+    if(r.status === 404) return { sha: null, items: [], people: {} };
     if(r.status === 401){ S.key = ''; localStorage.removeItem('atv.key'); gate(); throw new Error('Chave inválida'); }
     if(r.status === 403) throw new Error('Chave sem permissão');
     if(!r.ok) throw new Error('GitHub respondeu ' + r.status);
     const j = await r.json();
-    return { sha: j.sha, items: JSON.parse(b64d(j.content)).items || [] };
+    const data = JSON.parse(b64d(j.content));
+    return { sha: j.sha, items: data.items || [], people: data.people || {} };
   }
   // Sem chave: só leitura, pelo arquivo publicado no GitHub Pages.
   const r = await fetch('./data.json?t=' + Date.now(), { cache: 'no-store' });
   if(!r.ok) throw new Error('Não consegui ler os dados');
   const j = await r.json();
-  return { sha: null, items: j.items || [] };
+  return { sha: null, items: j.items || [], people: j.people || {} };
 }
 
 let saving = false, saveAgain = false, saveTimer = null;
@@ -159,7 +166,8 @@ async function push(){
     for(let i = 0; i < 4 && !ok; i++){
       const rem = await fetchRemote();
       S.items = merge(S.items, rem.items);
-      const payload = { version: 1, updatedAt: new Date().toISOString(), items: prune(S.items) };
+      S.people = mergePeople(S.people, rem.people);
+      const payload = { version: 1, updatedAt: new Date().toISOString(), people: S.people, items: prune(S.items) };
       const body = {
         message: `${PERSON[S.me] ? PERSON[S.me].name : 'Alguém'} atualizou as atividades`,
         content: b64e(JSON.stringify(payload, null, 1)), branch: CFG.branch
@@ -192,6 +200,7 @@ async function pull(){
     const rem = await fetchRemote();
     const before = JSON.stringify(S.items);
     S.items = merge(S.items, rem.items);
+    S.people = mergePeople(S.people, rem.people);
     S.lastSync = Date.now();
     persist();
     if(JSON.stringify(S.items) !== before) refresh();
@@ -732,18 +741,28 @@ async function bioRegister(){
     rp: { name: 'Atividades da Equipe' },
     user: { id: new TextEncoder().encode((S.me || 'eu') + '-' + uid()), name: p.full, displayName: p.full },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+    authenticatorSelection: { userVerification: 'required', residentKey: 'required', requireResidentKey: true },
     timeout: 60000, attestation: 'none'
   }});
-  lsSet('atv.bio', b64u(cred.rawId));
+  const id = b64u(cred.rawId);
+  lsSet('atv.bio', id);
+  // guarda no site que este rosto é desta pessoa: em outro aparelho, o nome dela só abre com ele
+  const cur = (S.people[S.me] && S.people[S.me].creds) || [];
+  S.people[S.me] = { creds: [...new Set([...cur, id])], u: Date.now() };
   markSeen();
+  changed();
 }
-async function bioVerify(){
-  const id = lsGet('atv.bio', null);
-  await navigator.credentials.get({ publicKey: {
-    challenge: rnd(32), allowCredentials: [{ type: 'public-key', id: unb64u(id) }],
+function personCreds(id){ return (S.people[id] && S.people[id].creds) || []; }
+// Confirma com um dos rostos cadastrados para a pessoa (deste aparelho ou sincronizado no iCloud/Google).
+async function bioVerify(ids){
+  ids = ids || [...new Set([lsGet('atv.bio', null), ...personCreds(S.me)].filter(Boolean))];
+  const cred = await navigator.credentials.get({ publicKey: {
+    challenge: rnd(32), allowCredentials: ids.map(i => ({ type: 'public-key', id: unb64u(i) })),
     userVerification: 'required', timeout: 60000
   }});
+  const used = b64u(cred.rawId);
+  if(!ids.includes(used)) throw new Error('rosto de outra pessoa');
+  lsSet('atv.bio', used);
   markSeen();
 }
 function markSeen(){ lsSet('atv.seen', Date.now()); }
@@ -794,50 +813,59 @@ async function gate(){
     return;
   }
   if(!S.me){
+    try { await pull(); } catch(e){}
     lockScreen(`<h2>Quem é você?</h2>
-      <p class="muted">Escolha seu nome. Fica guardado neste aparelho.</p>
-      <div class="who-grid">${PEOPLE.map(p => `<button class="who-opt" data-gate-me="${p.id}">${avatar(p.id, 'lg')}${p.full}</button>`).join('')}</div>`);
+      <p class="muted">Escolha seu nome. Na primeira vez, você cadastra seu rosto ou digital, e o seu nome passa a abrir só com ele.</p>
+      <div class="who-grid">${PEOPLE.map(p => `<button class="who-opt" data-gate-me="${p.id}">${avatar(p.id, 'lg')}<span style="flex:1">${p.full}</span>${personCreds(p.id).length ? '<span class="lock-tag">🔒 cadastrado</span>' : ''}</button>`).join('')}</div>`);
     return;
   }
-  const hasBio = !!lsGet('atv.bio', null);
-  if(!hasBio){
-    // aparelho sem rosto/digital (ou que não conseguiu cadastrar): entra direto
-    if(lsGet('atv.bioSkip', false) || !(await bioAvailable())){ openApp(); return; }
-    lockScreen(`<h2>Olá, ${esc(PERSON[S.me].name)}</h2>
-      <p class="muted">Cadastre seu rosto ou digital para proteger o app. Seu rosto não sai do aparelho, quem confere é o próprio celular.</p>
-      <button class="btn primary block" id="gateBtn">${I.face}Cadastrar rosto ou digital</button>
-      <button class="linkbtn" id="gateSwap" style="margin-top:14px">Não sou ${esc(PERSON[S.me].name)}</button>`);
-    $('#gateBtn').onclick = () => bioRegister().then(() => { lsSet('atv.bioSkip', false); openApp(); toast('Pronto! Protegido com rosto/digital 🔒'); })
-      .catch(() => {
-        $('#lockErr').innerHTML = `Não deu certo neste aparelho. Toque para tentar de novo.
-          <button class="btn block" id="gateSkip" style="margin-top:14px">Entrar sem rosto neste aparelho</button>`;
-        $('#gateSkip').onclick = () => { lsSet('atv.bioSkip', true); openApp(); };
-      });
-    $('#gateSwap').onclick = () => { S.me = null; localStorage.removeItem('atv.me'); gate(); };
-    return;
-  }
-  if(needsUnlock()){
-    lockScreen(`<h2>Olá, ${esc(PERSON[S.me].name)}</h2>
+  const name = esc(PERSON[S.me].name);
+  const back = `<button class="linkbtn" id="gateSwap" style="margin-top:14px">Não sou ${name}</button>`;
+  const bindBack = () => { const b = $('#gateSwap'); if(b) b.onclick = () => { S.me = null; localStorage.removeItem('atv.me'); localStorage.removeItem('atv.bio'); gate(); }; };
+  const fail = msg => { $('#lockErr').textContent = msg; };
+  const hasLocal = !!lsGet('atv.bio', null);
+  const registered = personCreds(S.me).length > 0;
+
+  // 1) Este aparelho já tem o rosto: só pede de novo depois de 1 hora sem uso
+  if(hasLocal){
+    if(!needsUnlock()){ openApp(); return; }
+    lockScreen(`<h2>Olá, ${name}</h2>
       <p class="muted">Confirme que é você para abrir.</p>
-      <button class="btn primary block" id="gateBtn">${I.face}Desbloquear com rosto ou digital</button>`);
-    const go = () => bioVerify().then(openApp).catch(() => {
-      $('#lockErr').innerHTML = `Não deu certo. Toque para tentar de novo.
-        <button class="linkbtn" id="gateRedo" style="display:block;margin:12px auto 0">Cadastrar de novo</button>`;
-      $('#gateRedo').onclick = () => {
-        if(!confirm('Para cadastrar de novo, vai pedir a chave de acesso outra vez. Continuar?')) return;
-        ['atv.bio', 'atv.bioSkip', 'atv.key'].forEach(k => localStorage.removeItem(k));
-        S.key = ''; gate();
-      };
-    });
+      <button class="btn primary block" id="gateBtn">${I.face}Desbloquear com rosto ou digital</button>${back}`);
+    bindBack();
+    const go = () => bioVerify().then(openApp).catch(() => fail('Não deu certo. Toque para tentar de novo.'));
     $('#gateBtn').onclick = go;
-    go(); // tenta na hora; se o navegador exigir um toque, fica o botão
+    go();
     return;
   }
-  openApp();
+
+  // 2) O nome já tem rosto cadastrado (em outro aparelho): precisa ser o mesmo rosto
+  if(registered){
+    lockScreen(`<h2>Olá, ${name}</h2>
+      <p class="muted">Esse nome já tem rosto/digital cadastrado. Confirme com o <b>seu</b> para entrar neste aparelho.</p>
+      <button class="btn primary block" id="gateBtn">${I.face}Confirmar com rosto ou digital</button>
+      <p class="help" style="margin-top:12px">Trocou de celular e não consegue? Peça para alguém da equipe liberar um novo cadastro nos Ajustes.</p>${back}`);
+    bindBack();
+    $('#gateBtn').onclick = () => bioVerify(personCreds(S.me)).then(openApp)
+      .catch(() => fail(`Não reconhecido. Só o rosto/digital do ${PERSON[S.me].name} abre esse nome.`));
+    return;
+  }
+
+  // 3) Primeira vez desse nome: cadastra
+  lockScreen(`<h2>Olá, ${name}</h2>
+    <p class="muted">Cadastre seu rosto ou digital. A partir daí, o seu nome só abre com ele, em qualquer aparelho. Seu rosto não sai do celular.</p>
+    <button class="btn primary block" id="gateBtn">${I.face}Cadastrar rosto ou digital</button>${back}`);
+  bindBack();
+  $('#gateBtn').onclick = async () => {
+    try { await pull(); } catch(e){}
+    if(personCreds(S.me).length){ gate(); return; } // alguém cadastrou nesse meio tempo
+    bioRegister().then(() => { openApp(); toast('Pronto! Seu nome agora abre só com seu rosto 🔒'); })
+      .catch(() => fail('Não deu certo. Toque para tentar de novo.'));
+  };
 }
 $('#lock').addEventListener('click', e => {
   const b = e.target.closest('[data-gate-me]');
-  if(b){ S.me = b.dataset.gateMe; lsSet('atv.me', S.me); gate(); }
+  if(b){ S.me = b.dataset.gateMe; lsSet('atv.me', S.me); localStorage.removeItem('atv.bio'); gate(); }
 });
 
 /* ---------- Folha de ajustes ---------- */
@@ -859,10 +887,12 @@ function openSettings(first){
       <p class="help" style="margin-bottom:6px">Quem abrir o link já entra conectado (com a chave). Mande só para a equipe.</p>
       ${PEOPLE.filter(p => p.id !== S.me).map(p => `<div class="invite"><span>${avatar(p.id, 'sm')}${p.full}</span>
         <button class="btn small" data-act="invite" data-link="${esc(link(p.id))}" data-name="${p.name}">${I.share}Enviar</button></div>`).join('')}` : ''}
-    <div class="lbl">Rosto / digital</div>
-    <p class="help">${lsGet('atv.bio', null) ? '🔒 Ativado. O app pede seu rosto ou digital depois de 1 hora sem uso.'
-      : 'Desligado neste aparelho, o app abre direto.'}</p>
-    ${bioOk !== false ? `<div class="row" style="margin-top:8px"><button class="btn small" data-act="bio-on">${I.face}${lsGet('atv.bio', null) ? 'Cadastrar rosto de novo' : 'Ativar rosto ou digital'}</button></div>` : ''}
+    <div class="lbl">Rosto / digital da equipe</div>
+    ${PEOPLE.map(p => `<div class="invite"><span>${avatar(p.id, 'sm')}${p.full}</span>
+      ${personCreds(p.id).length
+        ? `<span class="row"><span class="tag ok">🔒 cadastrado</span>${p.id !== S.me ? `<button class="btn small" data-act="bio-reset" data-v="${p.id}">Liberar novo</button>` : ''}</span>`
+        : '<span class="tag">ainda não</span>'}</div>`).join('')}
+    <p class="help">"Liberar novo" é para quando alguém troca de celular: na próxima vez que entrar, ele cadastra o rosto de novo.</p>
     <div class="lbl">Aparência</div>
     <div class="seg">${[['', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="${(lsGet('atv.theme', '') === v) ? 'on' : ''}" data-act="theme" data-v="${v}">${l}</button>`).join('')}</div>`}
   `, !first);
@@ -928,17 +958,22 @@ document.addEventListener('click', e => {
     case 'close-sheet': if(sheetClosable) closeSheet(); break;
     case 'set-me': {
       const first = !S.me;
-      S.me = d.v; lsSet('atv.me', S.me);
-      if(first){ closeSheet(); toast('Oi, ' + PERSON[S.me].name + '!'); } else openSettings(false);
-      refresh(); break;
+      if(d.v === S.me) break;
+      // trocar de nome passa pelo portão: o outro nome só abre com o rosto dele
+      S.me = d.v; lsSet('atv.me', S.me); localStorage.removeItem('atv.bio');
+      closeSheet(); gate(); break;
     }
     case 'save-key': S.key = $('#keyIn').value.trim(); lsSet('atv.key', S.key); setSync('saving'); pull().then(() => openSettings(false)); break;
     case 'sync-now': pull().then(() => openSettings(false)); break;
-    case 'bio-on':
-      // se já tem cadastro, confirma o rosto atual antes de trocar
-      (lsGet('atv.bio', null) ? bioVerify() : Promise.resolve()).then(bioRegister).then(() => { lsSet('atv.bioSkip', false); openSettings(false); toast('Pronto! Protegido com rosto/digital 🔒'); })
-        .catch(() => toast('Não deu certo. Precisa confirmar que é você.'));
+    case 'bio-reset': {
+      const who = d.v;
+      if(!confirm(`Liberar um novo cadastro de rosto para ${PERSON[who].name}?`)) break;
+      bioVerify().then(() => {
+        S.people[who] = { creds: [], u: Date.now() };
+        changed(); openSettings(false); toast(`${PERSON[who].name} pode cadastrar o rosto de novo`);
+      }).catch(() => toast('Precisa confirmar que é você.'));
       break;
+    }
     case 'theme': lsSet('atv.theme', d.v); applyTheme(); openSettings(false); break;
     case 'invite': {
       const text = `${d.name}, abre esse link para ver e editar nossas atividades: ${d.link}`;
