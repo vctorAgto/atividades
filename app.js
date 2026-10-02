@@ -935,8 +935,9 @@ document.addEventListener('click', e => {
     case 'save-key': S.key = $('#keyIn').value.trim(); lsSet('atv.key', S.key); setSync('saving'); pull().then(() => openSettings(false)); break;
     case 'sync-now': pull().then(() => openSettings(false)); break;
     case 'bio-on':
-      bioRegister().then(() => { lsSet('atv.bioSkip', false); openSettings(false); toast('Pronto! Protegido com rosto/digital 🔒'); })
-        .catch(() => toast('Não deu certo neste aparelho.'));
+      // se já tem cadastro, confirma o rosto atual antes de trocar
+      (lsGet('atv.bio', null) ? bioVerify() : Promise.resolve()).then(bioRegister).then(() => { lsSet('atv.bioSkip', false); openSettings(false); toast('Pronto! Protegido com rosto/digital 🔒'); })
+        .catch(() => toast('Não deu certo. Precisa confirmar que é você.'));
       break;
     case 'theme': lsSet('atv.theme', d.v); applyTheme(); openSettings(false); break;
     case 'invite': {
