@@ -387,14 +387,20 @@ input.inp:focus,textarea.inp:focus{outline:none;border-color:var(--accent);box-s
   background-image:radial-gradient(var(--dots) 1px, transparent 1px);background-size:22px 22px;
   display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;
 }
-.lock-box{width:100%;max-width:340px;text-align:center;}
-.lock-logo{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--paper);box-shadow:var(--shadow);margin-bottom:14px;}
-.lock-box h2{font-size:1.8rem;margin:2px 0 4px;}
-.lock-box .muted{margin:0 0 22px;font-size:.92rem;}
+.lock-box{width:100%;max-width:440px;text-align:center;}
+.lock-logo{width:132px;height:132px;border-radius:50%;object-fit:cover;border:4px solid var(--paper);box-shadow:var(--shadow);margin-bottom:18px;}
+.lock-box .eyebrow{font-size:.78rem;}
+.lock-box h2{font-size:2.4rem;margin:4px 0 8px;line-height:1.1;}
+.lock-box .muted{margin:0 0 28px;font-size:1.08rem;line-height:1.5;}
+.lock-box .btn{font-size:1.1rem;padding:18px 20px;border-radius:18px;}
+.lock-box .btn svg{width:24px;height:24px;}
+.lock-box .linkbtn{font-size:1rem;padding:12px;}
+.lock-box .who-opt{padding:16px 18px;font-size:1.12rem;border-radius:18px;}
+.lock-box .who-grid{gap:12px;}
 .lock .who-grid{text-align:left;}
 body.locked{overflow:hidden;}
 body.locked .app,body.locked .tabbar{visibility:hidden;}
-.lock-err{color:var(--late);font-size:.84rem;min-height:1.2em;margin-top:10px;}
+.lock-err{color:var(--late);font-size:1rem;min-height:1.2em;margin-top:14px;}
 
 /* ---------- Toast ---------- */
 .toast{

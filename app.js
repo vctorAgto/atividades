@@ -775,13 +775,18 @@ async function gate(){
   }
   const hasBio = !!lsGet('atv.bio', null);
   if(!hasBio){
-    if(!(await bioAvailable())){ openApp(); return; } // aparelho sem rosto/digital: entra direto
+    // aparelho sem rosto/digital (ou que não conseguiu cadastrar): entra direto
+    if(lsGet('atv.bioSkip', false) || !(await bioAvailable())){ openApp(); return; }
     lockScreen(`<h2>Olá, ${esc(PERSON[S.me].name)}</h2>
       <p class="muted">Cadastre seu rosto ou digital para proteger o app. Seu rosto não sai do aparelho, quem confere é o próprio celular.</p>
       <button class="btn primary block" id="gateBtn">${I.face}Cadastrar rosto ou digital</button>
       <button class="linkbtn" id="gateSwap" style="margin-top:14px">Não sou ${esc(PERSON[S.me].name)}</button>`);
-    $('#gateBtn').onclick = () => bioRegister().then(() => { openApp(); toast('Pronto! Protegido com rosto/digital 🔒'); })
-      .catch(() => { $('#lockErr').textContent = 'Não deu certo. Toque para tentar de novo.'; });
+    $('#gateBtn').onclick = () => bioRegister().then(() => { lsSet('atv.bioSkip', false); openApp(); toast('Pronto! Protegido com rosto/digital 🔒'); })
+      .catch(() => {
+        $('#lockErr').innerHTML = `Não deu certo neste aparelho. Toque para tentar de novo.
+          <button class="btn block" id="gateSkip" style="margin-top:14px">Entrar sem rosto neste aparelho</button>`;
+        $('#gateSkip').onclick = () => { lsSet('atv.bioSkip', true); openApp(); };
+      });
     $('#gateSwap').onclick = () => { S.me = null; localStorage.removeItem('atv.me'); gate(); };
     return;
   }
@@ -822,7 +827,8 @@ function openSettings(first){
         <button class="btn small" data-act="invite" data-link="${esc(link(p.id))}" data-name="${p.name}">${I.share}Enviar</button></div>`).join('')}` : ''}
     <div class="lbl">Rosto / digital</div>
     <p class="help">${lsGet('atv.bio', null) ? '🔒 Ativado. O app pede seu rosto ou digital depois de 1 hora sem uso.'
-      : 'Este aparelho não tem rosto ou digital disponível para sites, então o app abre direto.'}</p>
+      : 'Desligado neste aparelho, o app abre direto.'}</p>
+    ${!lsGet('atv.bio', null) && bioOk !== false ? `<div class="row" style="margin-top:8px"><button class="btn small" data-act="bio-on">${I.face}Ativar rosto ou digital</button></div>` : ''}
     <div class="lbl">Aparência</div>
     <div class="seg">${[['', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="${(lsGet('atv.theme', '') === v) ? 'on' : ''}" data-act="theme" data-v="${v}">${l}</button>`).join('')}</div>`}
   `, !first);
@@ -894,6 +900,10 @@ document.addEventListener('click', e => {
     }
     case 'save-key': S.key = $('#keyIn').value.trim(); lsSet('atv.key', S.key); setSync('saving'); pull().then(() => openSettings(false)); break;
     case 'sync-now': pull().then(() => openSettings(false)); break;
+    case 'bio-on':
+      bioRegister().then(() => { lsSet('atv.bioSkip', false); openSettings(false); toast('Pronto! Protegido com rosto/digital 🔒'); })
+        .catch(() => toast('Não deu certo neste aparelho.'));
+      break;
     case 'theme': lsSet('atv.theme', d.v); applyTheme(); openSettings(false); break;
     case 'invite': {
       const text = `${d.name}, abre esse link para ver e editar nossas atividades: ${d.link}`;
