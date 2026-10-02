@@ -590,6 +590,22 @@ function bindQuick(){
   };
   inp.addEventListener('input', () => { Q.who = null; update(); });
   inp.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); quickAdd(); } });
+  // Colar várias linhas: cada linha vira uma atividade
+  inp.addEventListener('paste', e => {
+    const txt = (e.clipboardData || window.clipboardData).getData('text');
+    const lines = txt.split(/\r?\n/).map(l => l.replace(/^[\s\-•*\d.)]+/, '').trim()).filter(Boolean);
+    if(lines.length < 2) return;
+    e.preventDefault();
+    if(!confirm(`Adicionar ${lines.length} atividades de uma vez?`)) return;
+    const added = lines.map(l => {
+      const p = parseQuick(l);
+      const it = newItem({ title: p.title || l, type: p.type, date: p.date, time: p.time, priority: p.priority,
+        who: p.who.length ? p.who : (p.type === 'obs' || !S.me ? [] : [S.me]) });
+      S.items.push(it); return it;
+    });
+    changed();
+    toast(`${added.length} atividades adicionadas`, [{ label: 'Desfazer', fn: () => { added.forEach(it => { it.deleted = true; touch(it); }); changed(); } }]);
+  });
   go.addEventListener('click', quickAdd);
   if(mic) mic.addEventListener('click', () => startVoice(mic, s => { inp.value = s; update(); }, () => inp.focus()));
   $('#qPrev').addEventListener('click', e => {
