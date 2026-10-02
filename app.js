@@ -299,6 +299,8 @@ function parseQuick(raw){
     .trim();
   res.title = res.title ? cap(res.title) : '';
   if(!res.type) res.type = res.time ? 'atividade' : 'tarefa';
+  // Sem data falada/escrita: fica para hoje (dá para mudar depois).
+  if(!res.date && res.type !== 'obs') res.date = T;
   return res;
 }
 
@@ -620,7 +622,7 @@ let E = null; // { item, draft, touched:Set, isNew }
 function openEditor(item, preset, rawText){
   const isNew = !item;
   const draft = isNew
-    ? Object.assign({ title: '', type: 'tarefa', who: S.me ? [S.me] : [], date: null, time: null, priority: 'normal', notes: '' }, preset || {})
+    ? Object.assign({ title: '', type: 'tarefa', who: S.me ? [S.me] : [], date: today(), time: null, priority: 'normal', notes: '' }, preset || {})
     : JSON.parse(JSON.stringify(item));
   E = { item, draft, isNew, touched: new Set(preset ? Object.keys(preset) : []), raw: rawText || (preset && preset.title) || '' };
   if(preset && rawText) E.touched = new Set(['who']);
