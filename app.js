@@ -79,10 +79,14 @@ function avatars(who, cls){ return who && who.length ? `<span class="avs">${who.
 /* ---------- Estado ---------- */
 const S = {
   items: lsGet('atv.items', []),
-  people: lsGet('atv.people', {}), // { victor: { creds: [ids], u } } — de quem é cada rosto
+  // Público (vai no data.json), mas tudo que importa está cifrado:
+  vault: lsGet('atv.vault', {}),     // { credId: { who, box, u } }   chave da equipe cifrada pelo rosto de cada um
+  invites: lsGet('atv.invites', {}), // { id: { for, box, u, exp } }  chave da equipe cifrada pelo convite
+  secret: lsGet('atv.secret', null), // token do GitHub cifrado com a chave da equipe
+  K: null, Kraw: null,               // chave da equipe (só na memória, depois do rosto)
   sha: null,
   me: lsGet('atv.me', null),
-  key: lsGet('atv.key', ''),
+  key: '',                           // token do GitHub (só na memória, depois do rosto)
   dirty: lsGet('atv.dirty', false),
   editVer: 0,
   sync: 'idle', syncMsg: '', lastSync: lsGet('atv.lastSync', null),
@@ -94,7 +98,7 @@ const S = {
 };
 { const d = new Date(); S.cal = { y: d.getFullYear(), m: d.getMonth() }; }
 
-function persist(){ lsSet('atv.people', S.people); lsSet('atv.items', S.items); lsSet('atv.dirty', S.dirty); lsSet('atv.lastSync', S.lastSync); }
+function persist(){ lsSet('atv.vault', S.vault); lsSet('atv.invites', S.invites); lsSet('atv.secret', S.secret); lsSet('atv.items', S.items); lsSet('atv.dirty', S.dirty); lsSet('atv.lastSync', S.lastSync); }
 const live = () => S.items.filter(i => !i.deleted);
 const byId = id => S.items.find(i => i.id === id);
 function touch(it){ it.u = Date.now(); it.by = S.me; }
@@ -122,32 +126,42 @@ function merge(a, b){
   for(const r of b){ const l = map.get(r.id); if(!l || (r.u || 0) > (l.u || 0)) map.set(r.id, r); }
   return [...map.values()];
 }
-function mergePeople(a, b){
+function mergeMap(a, b){
   const out = Object.assign({}, a);
   for(const [id, v] of Object.entries(b || {})) if(!out[id] || (v.u || 0) > (out[id].u || 0)) out[id] = v;
   return out;
 }
 // Itens apagados ficam como "lápide" por 45 dias para os outros aparelhos saberem que foram apagados.
+function pruneMap(m){ const lim = Date.now() - 30 * 864e5; return Object.fromEntries(Object.entries(m).filter(([, v]) => !(v.deleted || (v.exp && v.exp < Date.now())) || (v.u || 0) > lim)); }
 function prune(list){ const lim = Date.now() - 45 * 864e5; return list.filter(i => !i.deleted || (i.u || 0) > lim); }
 
 async function fetchRemote(){
+  let data = {}, sha = null;
   if(S.key){
     const r = await fetch(`${API}?ref=${CFG.branch}&t=${Date.now()}`, {
       headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + S.key }, cache: 'no-store'
     });
-    if(r.status === 404) return { sha: null, items: [], people: {} };
-    if(r.status === 401) throw new Error('Chave inválida');
-    if(r.status === 403) throw new Error('Chave sem permissão');
-    if(!r.ok) throw new Error('GitHub respondeu ' + r.status);
-    const j = await r.json();
-    const data = JSON.parse(b64d(j.content));
-    return { sha: j.sha, items: data.items || [], people: data.people || {} };
+    if(r.status === 401) throw new Error('Token inválido');
+    if(r.status === 403) throw new Error('Token sem permissão');
+    if(r.ok){ const j = await r.json(); sha = j.sha; data = JSON.parse(b64d(j.content)); }
+    else if(r.status !== 404) throw new Error('GitHub respondeu ' + r.status);
+  } else {
+    // Antes do rosto: lê a versão pública (só tem coisa cifrada)
+    let r = await fetch(`${API}?ref=${CFG.branch}&t=${Date.now()}`, { headers: { Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' }).catch(() => null);
+    if(!r || !r.ok) r = await fetch('./data.json?t=' + Date.now(), { cache: 'no-store' });
+    if(!r.ok) throw new Error('Não consegui ler os dados');
+    data = await r.json();
   }
-  // Sem chave: só leitura, pelo arquivo publicado no GitHub Pages.
-  const r = await fetch('./data.json?t=' + Date.now(), { cache: 'no-store' });
-  if(!r.ok) throw new Error('Não consegui ler os dados');
-  const j = await r.json();
-  return { sha: null, items: j.items || [], people: j.people || {} };
+  let items = [];
+  if(data.enc){ if(S.K) items = (await decBox(S.K, data.enc)).items || []; }
+  else items = data.items || [];
+  return { sha, items, vault: data.vault || {}, invites: data.invites || {}, secret: data.secret || null };
+}
+function applyRemote(rem){
+  S.items = merge(S.items, rem.items);
+  S.vault = mergeMap(S.vault, rem.vault);
+  S.invites = mergeMap(S.invites, rem.invites);
+  if(rem.secret) S.secret = rem.secret;
 }
 
 let saving = false, saveAgain = false, saveTimer = null;
@@ -156,7 +170,7 @@ function changed(){
   clearTimeout(saveTimer); saveTimer = setTimeout(push, 600);
 }
 async function push(){
-  if(!S.key){ setSync('local'); return; }
+  if(!S.key || !S.K){ setSync('local'); return; }
   if(!S.dirty) return;
   if(saving){ saveAgain = true; return; }
   saving = true; setSync('saving');
@@ -165,9 +179,12 @@ async function push(){
     let ok = false;
     for(let i = 0; i < 4 && !ok; i++){
       const rem = await fetchRemote();
-      S.items = merge(S.items, rem.items);
-      S.people = mergePeople(S.people, rem.people);
-      const payload = { version: 1, updatedAt: new Date().toISOString(), people: S.people, items: prune(S.items) };
+      applyRemote(rem);
+      const payload = {
+        version: 2, updatedAt: new Date().toISOString(),
+        vault: S.vault, invites: pruneMap(S.invites), secret: S.secret,
+        enc: await encBox(S.K, { items: prune(S.items) })
+      };
       const body = {
         message: `${PERSON[S.me] ? PERSON[S.me].name : 'Alguém'} atualizou as atividades`,
         content: b64e(JSON.stringify(payload, null, 1)), branch: CFG.branch
@@ -180,7 +197,7 @@ async function push(){
       });
       if(r.ok){ ok = true; break; }
       if(r.status === 409 || r.status === 422) continue; // alguém salvou junto: busca de novo e tenta outra vez
-      if(r.status === 401 || r.status === 403) throw new Error('Chave inválida ou sem permissão');
+      if(r.status === 401 || r.status === 403) throw new Error('Token inválido ou sem permissão');
       throw new Error('GitHub respondeu ' + r.status);
     }
     if(!ok) throw new Error('Conflito ao salvar, tentando de novo já já');
@@ -199,8 +216,7 @@ async function pull(){
   try{
     const rem = await fetchRemote();
     const before = JSON.stringify(S.items);
-    S.items = merge(S.items, rem.items);
-    S.people = mergePeople(S.people, rem.people);
+    applyRemote(rem);
     S.lastSync = Date.now();
     persist();
     if(JSON.stringify(S.items) !== before) refresh();
@@ -720,54 +736,85 @@ function saveEditor(){
   }
 }
 
-/* ---------- Bloqueio com rosto / digital (do próprio aparelho) ---------- */
-// Usa o desbloqueio do celular (Face ID, digital, Windows Hello). Nada de rosto sai do aparelho:
-// o site só pede para o aparelho confirmar que é o dono, e guarda o id da credencial aqui.
-const LOCK_AFTER = 60 * 60 * 1000; // pede de novo depois de 1 hora sem usar
+/* ---------- Cofre com rosto / digital ---------- */
+// Como funciona (sem servidor):
+// - Existe uma "chave da equipe" (K). Ela cifra as atividades e o token do GitHub no data.json.
+// - O rosto/digital de cada um (passkey com a extensão PRF) gera um segredo que só aquele
+//   aparelho/conta produz. Com ele, K fica guardada cifrada no "cofre" (vault), uma cópia por pessoa.
+// - Convite: K cifrada com um segredo aleatório que vai só no link. Usou, apagou.
+// Resultado: quem não tem rosto cadastrado não lê nada, e ninguém vê o token.
+const LOCK_AFTER = 60 * 60 * 1000; // pede o rosto de novo depois de 1 hora sem usar
+const PRF_SALT = new TextEncoder().encode('atividades-equipe/prf/v1');
 const rnd = n => crypto.getRandomValues(new Uint8Array(n));
-const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-let bioOk = null;
-async function bioAvailable(){
-  if(bioOk !== null) return bioOk;
-  try { bioOk = !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
-  catch(e){ bioOk = false; }
-  return bioOk;
+function b64u(buf){
+  const b = new Uint8Array(buf); let s = '';
+  for(let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-async function bioRegister(){
-  const p = PERSON[S.me] || { full: 'Equipe' };
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+const aesKey = raw => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+async function encBox(key, obj){
+  const iv = rnd(12);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return { iv: b64u(iv), ct: b64u(ct) };
+}
+async function decBox(key, box){
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64u(box.iv) }, key, unb64u(box.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function ssGet(k){ try { return sessionStorage.getItem(k); } catch(e){ return null; } }
+function ssSet(k, v){ try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch(e){} }
+
+async function passkeyGet(ids){
+  const cred = await navigator.credentials.get({ publicKey: {
+    challenge: rnd(32), userVerification: 'required', timeout: 120000,
+    allowCredentials: ids.map(i => ({ type: 'public-key', id: unb64u(i) })),
+    extensions: { prf: { eval: { first: PRF_SALT } } }
+  }});
+  const id = b64u(cred.rawId), r = cred.getClientExtensionResults().prf;
+  if(!ids.includes(id)) throw new Error('outro');
+  if(!r || !r.results || !r.results.first) throw new Error('noprf');
+  return { id, prf: new Uint8Array(r.results.first) };
+}
+async function passkeyCreate(){
+  const p = PERSON[S.me];
   const cred = await navigator.credentials.create({ publicKey: {
-    challenge: rnd(32),
-    rp: { name: 'Atividades da Equipe' },
-    user: { id: new TextEncoder().encode((S.me || 'eu') + '-' + uid()), name: p.full, displayName: p.full },
+    challenge: rnd(32), rp: { name: 'Atividades da Equipe' },
+    user: { id: rnd(16), name: p.full, displayName: p.full },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
     authenticatorSelection: { userVerification: 'required', residentKey: 'required', requireResidentKey: true },
-    timeout: 60000, attestation: 'none'
+    timeout: 120000, attestation: 'none',
+    extensions: { prf: { eval: { first: PRF_SALT } } }
   }});
-  const id = b64u(cred.rawId);
-  lsSet('atv.bio', id);
-  // guarda no site que este rosto é desta pessoa: em outro aparelho, o nome dela só abre com ele
-  const cur = (S.people[S.me] && S.people[S.me].creds) || [];
-  S.people[S.me] = { creds: [...new Set([...cur, id])], u: Date.now() };
-  markSeen();
-  changed();
+  const id = b64u(cred.rawId), ext = cred.getClientExtensionResults().prf || {};
+  if(ext.enabled === false) throw new Error('noprf');
+  if(ext.results && ext.results.first) return { id, prf: new Uint8Array(ext.results.first) };
+  return passkeyGet([id]); // alguns celulares só entregam o segredo num segundo toque
 }
-function personCreds(id){ return (S.people[id] && S.people[id].creds) || []; }
-// Confirma com um dos rostos cadastrados para a pessoa (deste aparelho ou sincronizado no iCloud/Google).
-async function bioVerify(ids){
-  ids = ids || [...new Set([lsGet('atv.bio', null), ...personCreds(S.me)].filter(Boolean))];
-  const cred = await navigator.credentials.get({ publicKey: {
-    challenge: rnd(32), allowCredentials: ids.map(i => ({ type: 'public-key', id: unb64u(i) })),
-    userVerification: 'required', timeout: 60000
-  }});
-  const used = b64u(cred.rawId);
-  if(!ids.includes(used)) throw new Error('rosto de outra pessoa');
-  lsSet('atv.bio', used);
-  markSeen();
+// Guarda K no cofre, cifrada pelo rosto que acabou de ser cadastrado.
+async function addToVault(pk){
+  S.vault[pk.id] = { who: S.me, box: await encBox(await aesKey(pk.prf), { k: b64u(S.Kraw) }), u: Date.now() };
 }
+async function unlockWith(raw){
+  S.Kraw = raw; S.K = await aesKey(raw);
+  ssSet('atv.K', b64u(raw));
+  if(S.secret) S.key = (await decBox(S.K, S.secret)).token;
+}
+function personCreds(who){ return Object.entries(S.vault).filter(([, v]) => v.who === who && !v.deleted).map(([id]) => id); }
 function markSeen(){ lsSet('atv.seen', Date.now()); }
-function needsUnlock(){ return !!lsGet('atv.bio', null) && Date.now() - lsGet('atv.seen', 0) > LOCK_AFTER; }
-// Portão de entrada: nada aparece atrás até a pessoa escolher o nome e confirmar com rosto/digital.
+function needsUnlock(){ return Date.now() - lsGet('atv.seen', 0) > LOCK_AFTER; }
+function pendingInvite(){
+  const raw = ssGet('atv.inv'); if(!raw) return null;
+  const [id, sec] = raw.split('.'); const inv = S.invites[id];
+  if(!inv || inv.deleted || (inv.exp && inv.exp < Date.now())) return null;
+  return { id, sec, inv };
+}
+function friendlyErr(e){
+  if(e && e.message === 'noprf') return 'Este aparelho/navegador não suporta o cofre com rosto. Use Chrome no Android ou Safari no iPhone (iOS 18 ou mais novo).';
+  if(e && e.message === 'outro') return 'Esse rosto/digital não é desse nome.';
+  return 'Não deu certo. Toque para tentar de novo.';
+}
+
 function lockScreen(inner){
   const el = $('#lock');
   el.innerHTML = `<div class="lock-box">
@@ -781,10 +828,8 @@ function lockScreen(inner){
 }
 async function checkKey(k){
   try {
-    const r = await fetch(`${API}?ref=${CFG.branch}&t=${Date.now()}`, { headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + k }, cache: 'no-store' });
-    if(!r.ok && r.status !== 404) return false;
-    // só passa se a chave puder gravar neste repositório
     const repo = await fetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}`, { headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + k } });
+    if(!repo.ok) return false;
     const j = await repo.json();
     return !!(j.permissions && j.permissions.push);
   } catch(e){ return false; }
@@ -793,94 +838,143 @@ function openApp(){
   $('#lock').hidden = true;
   document.body.classList.remove('locked');
   markSeen();
+  setSync(S.key ? 'saving' : 'local');
   refresh();
   pull();
 }
+
 async function gate(){
+  const busy = (btn, on) => { if(btn){ btn.disabled = on; } };
+  const fail = msg => { const e = $('#lockErr'); if(e) e.textContent = msg; };
+  try { applyRemote(await fetchRemote()); persist(); } catch(e){}
+
+  const inv = pendingInvite();
+  if(inv && !S.me){ S.me = inv.inv.for; lsSet('atv.me', S.me); }
+
   if(!S.me){
-    try { await pull(); } catch(e){}
     lockScreen(`<h2>Quem é você?</h2>
-      <p class="muted">Escolha seu nome. Na primeira vez, você cadastra seu rosto ou digital, e o seu nome passa a abrir só com ele.</p>
+      <p class="muted">Escolha seu nome. Ele abre só com o seu rosto ou digital.</p>
       <div class="who-grid">${PEOPLE.map(p => `<button class="who-opt" data-gate-me="${p.id}">${avatar(p.id, 'lg')}<span style="flex:1">${p.full}</span>${personCreds(p.id).length ? '<span class="lock-tag">🔒 cadastrado</span>' : ''}</button>`).join('')}</div>`);
     return;
   }
   const name = esc(PERSON[S.me].name);
   const back = `<button class="linkbtn" id="gateSwap" style="margin-top:14px">Não sou ${name}</button>`;
-  const bindBack = () => { const b = $('#gateSwap'); if(b) b.onclick = () => { S.me = null; localStorage.removeItem('atv.me'); localStorage.removeItem('atv.bio'); gate(); }; };
-  const fail = msg => { $('#lockErr').textContent = msg; };
-  const hasLocal = !!lsGet('atv.bio', null);
-  const registered = personCreds(S.me).length > 0;
+  const bindBack = () => { const b = $('#gateSwap'); if(b) b.onclick = () => { S.me = null; localStorage.removeItem('atv.me'); lockOut(); gate(); }; };
 
-  // 1) Este aparelho já tem o rosto: só pede de novo depois de 1 hora sem uso
-  if(hasLocal){
-    if(!needsUnlock()){ openApp(); return; }
+  // Já desbloqueado nesta sessão e usado há menos de 1 hora
+  const sk = ssGet('atv.K');
+  if(sk && !needsUnlock() && !inv){
+    try { await unlockWith(unb64u(sk)); openApp(); return; } catch(e){ ssSet('atv.K', null); }
+  }
+
+  // 1) Primeira vez de todas: ninguém configurou ainda
+  if(!S.secret){
+    lockScreen(`<h2>Configuração inicial</h2>
+      <p class="muted">Só uma vez, para o app conseguir salvar. Cole o token do GitHub: ele vai ficar <b>trancado pelo seu rosto</b> e ninguém mais vê.</p>
+      <input class="inp" type="password" id="gateKey" placeholder="github_pat_…" autocomplete="off">
+      <button class="btn primary block" id="gateBtn" style="margin-top:12px">${I.face}Trancar com meu rosto</button>${back}`);
+    bindBack();
+    $('#gateBtn').onclick = async e => {
+      const k = $('#gateKey').value.trim(); if(!k) return;
+      busy(e.currentTarget, true); fail('Conferindo o token…');
+      if(!(await checkKey(k))){ fail('Esse token não funcionou. Ele precisa de Contents: Read and write no repositório atividades.'); busy(e.currentTarget, false); return; }
+      try {
+        fail('');
+        const raw = rnd(32);
+        S.Kraw = raw; S.K = await aesKey(raw);
+        const pk = await passkeyCreate();
+        await addToVault(pk);
+        S.secret = await encBox(S.K, { token: k });
+        await unlockWith(raw);
+        S.dirty = true; persist(); await push();
+        openApp(); toast('Pronto! O app agora abre só com seu rosto 🔒');
+      } catch(err){ fail(friendlyErr(err)); busy(e.currentTarget, false); }
+    };
+    return;
+  }
+
+  // 2) Chegou por um convite: cadastra o rosto e entra
+  if(inv && inv.inv.for === S.me){
+    lockScreen(`<h2>Bem-vindo, ${name}!</h2>
+      <p class="muted">Você foi convidado para a equipe. Cadastre seu rosto ou digital: a partir daí, é só com ele que você entra.</p>
+      <button class="btn primary block" id="gateBtn">${I.face}Cadastrar rosto ou digital</button>${back}`);
+    bindBack();
+    $('#gateBtn').onclick = async e => {
+      busy(e.currentTarget, true); fail('');
+      try {
+        const { k } = await decBox(await aesKey(unb64u(inv.sec)), inv.inv.box);
+        await unlockWith(unb64u(k));
+        const pk = await passkeyCreate();
+        await addToVault(pk);
+        S.invites[inv.id] = { deleted: true, u: Date.now() }; // convite usado, não serve mais
+        ssSet('atv.inv', null);
+        S.dirty = true; persist(); await push();
+        openApp(); toast('Pronto! Seu nome agora abre só com seu rosto 🔒');
+      } catch(err){ fail(friendlyErr(err)); busy(e.currentTarget, false); }
+    };
+    return;
+  }
+
+  // 3) Nome já cadastrado: confirma com o rosto dele
+  const creds = personCreds(S.me);
+  if(creds.length){
     lockScreen(`<h2>Olá, ${name}</h2>
       <p class="muted">Confirme que é você para abrir.</p>
-      <button class="btn primary block" id="gateBtn">${I.face}Desbloquear com rosto ou digital</button>${back}`);
+      <button class="btn primary block" id="gateBtn">${I.face}Entrar com rosto ou digital</button>${back}`);
     bindBack();
-    const go = () => bioVerify().then(openApp).catch(() => fail('Não deu certo. Toque para tentar de novo.'));
+    const go = async () => {
+      fail('');
+      try {
+        const pk = await passkeyGet(creds);
+        const { k } = await decBox(await aesKey(pk.prf), S.vault[pk.id].box);
+        await unlockWith(unb64u(k));
+        openApp();
+      } catch(err){ fail(err && err.name === 'OperationError' ? 'Esse rosto/digital não é desse nome.' : friendlyErr(err)); }
+    };
     $('#gateBtn').onclick = go;
-    go();
     return;
   }
 
-  // 2) O nome já tem rosto cadastrado (em outro aparelho): precisa ser o mesmo rosto
-  if(registered){
-    lockScreen(`<h2>Olá, ${name}</h2>
-      <p class="muted">Esse nome já tem rosto/digital cadastrado. Confirme com o <b>seu</b> para entrar neste aparelho.</p>
-      <button class="btn primary block" id="gateBtn">${I.face}Confirmar com rosto ou digital</button>
-      <p class="help" style="margin-top:12px">Trocou de celular e não consegue? Peça para alguém da equipe liberar um novo cadastro nos Ajustes.</p>${back}`);
-    bindBack();
-    $('#gateBtn').onclick = () => bioVerify(personCreds(S.me)).then(openApp)
-      .catch(() => fail(`Não reconhecido. Só o rosto/digital do ${PERSON[S.me].name} abre esse nome.`));
-    return;
-  }
-
-  // 3) Primeira vez desse nome: cadastra
+  // 4) Nome sem rosto e sem convite: precisa ser convidado
   lockScreen(`<h2>Olá, ${name}</h2>
-    <p class="muted">Cadastre seu rosto ou digital. A partir daí, o seu nome só abre com ele, em qualquer aparelho. Seu rosto não sai do celular.</p>
-    <button class="btn primary block" id="gateBtn">${I.face}Cadastrar rosto ou digital</button>${back}`);
+    <p class="muted">Seu nome ainda não tem rosto cadastrado. Peça para alguém da equipe te mandar um <b>convite</b> (Ajustes → Convidar).</p>${back}`);
   bindBack();
-  $('#gateBtn').onclick = async () => {
-    try { await pull(); } catch(e){}
-    if(personCreds(S.me).length){ gate(); return; } // alguém cadastrou nesse meio tempo
-    bioRegister().then(() => { openApp(); toast('Pronto! Seu nome agora abre só com seu rosto 🔒'); })
-      .catch(() => fail('Não deu certo. Toque para tentar de novo.'));
-  };
 }
+// Tranca de novo: tira as chaves da memória
+function lockOut(){ S.K = null; S.Kraw = null; S.key = ''; ssSet('atv.K', null); }
 $('#lock').addEventListener('click', e => {
   const b = e.target.closest('[data-gate-me]');
-  if(b){ S.me = b.dataset.gateMe; lsSet('atv.me', S.me); localStorage.removeItem('atv.bio'); gate(); }
+  if(b){ S.me = b.dataset.gateMe; lsSet('atv.me', S.me); gate(); }
 });
+async function createInvite(who){
+  const id = uid(), sec = rnd(32);
+  S.invites[id] = { for: who, box: await encBox(await aesKey(sec), { k: b64u(S.Kraw) }), u: Date.now(), exp: Date.now() + 7 * 864e5 };
+  changed();
+  return location.origin + location.pathname + '#convite=' + id + '.' + b64u(sec);
+}
 
 /* ---------- Folha de ajustes ---------- */
-function openSettings(first){
-  const link = id => location.origin + location.pathname + '#k=' + encodeURIComponent(S.key) + '&eu=' + id;
-  openSheet(`<div class="sh-head"><h2>${first ? 'Quem é você?' : 'Ajustes'}</h2>${first ? '' : `<button class="xbtn" data-act="close-sheet">${I.x}</button>`}</div>
-    ${first ? '<p class="help">Sem login: só escolha seu nome. Fica guardado neste aparelho.</p>' : '<div class="lbl">Eu sou</div>'}
+function openSettings(){
+  openSheet(`<div class="sh-head"><h2>Ajustes</h2><button class="xbtn" data-act="close-sheet">${I.x}</button></div>
+    <div class="lbl">Eu sou</div>
     <div class="who-grid" style="margin-top:10px">${PEOPLE.map(p => `<button class="who-opt ${S.me === p.id ? 'on' : ''}" data-act="set-me" data-v="${p.id}">${avatar(p.id, 'lg')}${p.full}</button>`).join('')}</div>
-    ${first ? '' : `
-    <div class="lbl">Chave de sincronização</div>
-    <input class="inp" type="password" id="keyIn" placeholder="github_pat_…" value="${esc(S.key)}" autocomplete="off">
-    <p class="help">${S.key ? (S.sync === 'error' ? '⚠️ ' + esc(S.syncMsg) : '✅ Conectado. Tudo que você muda aparece para os outros.') : 'Sem a chave você só consegue ver. Peça o link de acesso para quem administra.'}
+    <div class="lbl">Equipe</div>
+    ${PEOPLE.map(p => {
+      const has = personCreds(p.id).length > 0;
+      return `<div class="invite"><span>${avatar(p.id, 'sm')}${p.full}</span><span class="row">
+        ${has ? '<span class="tag ok">🔒 cadastrado</span>' : '<span class="tag">sem rosto</span>'}
+        ${p.id !== S.me ? `<button class="btn small" data-act="invite" data-v="${p.id}">${I.share}${has ? 'Novo celular' : 'Convidar'}</button>` : ''}
+      </span></div>`;
+    }).join('')}
+    <p class="help">O convite vale <b>uma vez</b> e por 7 dias: a pessoa abre, cadastra o rosto e o link para de funcionar.</p>
+    <div class="lbl">Sincronização</div>
+    <p class="help">${S.sync === 'error' ? '⚠️ ' + esc(S.syncMsg) : '✅ Tudo trancado pelo rosto. O que você muda aparece para os outros.'}
       ${S.lastSync ? '<br>Última sincronização ' + ago(S.lastSync) + '.' : ''}</p>
-    <div class="row" style="margin-top:10px">
-      <button class="btn small" data-act="save-key">Salvar chave</button>
-      <button class="btn small" data-act="sync-now">Sincronizar agora</button>
-    </div>
-    ${S.key ? `<div class="lbl">Mandar link de acesso</div>
-      <p class="help" style="margin-bottom:6px">Quem abrir o link já entra conectado (com a chave). Mande só para a equipe.</p>
-      ${PEOPLE.filter(p => p.id !== S.me).map(p => `<div class="invite"><span>${avatar(p.id, 'sm')}${p.full}</span>
-        <button class="btn small" data-act="invite" data-link="${esc(link(p.id))}" data-name="${p.name}">${I.share}Enviar</button></div>`).join('')}` : ''}
-    <div class="lbl">Rosto / digital da equipe</div>
-    ${PEOPLE.map(p => `<div class="invite"><span>${avatar(p.id, 'sm')}${p.full}</span>
-      ${personCreds(p.id).length
-        ? `<span class="row"><span class="tag ok">🔒 cadastrado</span>${p.id !== S.me ? `<button class="btn small" data-act="bio-reset" data-v="${p.id}">Liberar novo</button>` : ''}</span>`
-        : '<span class="tag">ainda não</span>'}</div>`).join('')}
-    <p class="help">"Liberar novo" é para quando alguém troca de celular: na próxima vez que entrar, ele cadastra o rosto de novo.</p>
+    <div class="row" style="margin-top:8px"><button class="btn small" data-act="sync-now">Sincronizar agora</button>
+      <button class="btn small" data-act="lock-now">🔒 Trancar agora</button></div>
     <div class="lbl">Aparência</div>
-    <div class="seg">${[['', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="${(lsGet('atv.theme', '') === v) ? 'on' : ''}" data-act="theme" data-v="${v}">${l}</button>`).join('')}</div>`}
-  `, !first);
+    <div class="seg">${[['', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="${(lsGet('atv.theme', '') === v) ? 'on' : ''}" data-act="theme" data-v="${v}">${l}</button>`).join('')}</div>
+  `);
 }
 function applyTheme(){ const t = lsGet('atv.theme', ''); if(t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
 
@@ -939,31 +1033,24 @@ document.addEventListener('click', e => {
     case 'cal': { const dt = new Date(S.cal.y, S.cal.m + Number(d.d), 1); S.cal = { y: dt.getFullYear(), m: dt.getMonth() }; refresh(); break; }
     case 'cal-today': { const n = new Date(); S.cal = { y: n.getFullYear(), m: n.getMonth() }; S.day = today(); refresh(); break; }
     case 'ntab': S.notesTab = d.tab; refresh(); break;
-    case 'settings': openSettings(false); break;
+    case 'settings': openSettings(); break;
     case 'close-sheet': if(sheetClosable) closeSheet(); break;
     case 'set-me': {
-      const first = !S.me;
       if(d.v === S.me) break;
       // trocar de nome passa pelo portão: o outro nome só abre com o rosto dele
-      S.me = d.v; lsSet('atv.me', S.me); localStorage.removeItem('atv.bio');
+      S.me = d.v; lsSet('atv.me', S.me); lockOut();
       closeSheet(); gate(); break;
     }
-    case 'save-key': S.key = $('#keyIn').value.trim(); lsSet('atv.key', S.key); setSync('saving'); pull().then(() => openSettings(false)); break;
-    case 'sync-now': pull().then(() => openSettings(false)); break;
-    case 'bio-reset': {
-      const who = d.v;
-      if(!confirm(`Liberar um novo cadastro de rosto para ${PERSON[who].name}?`)) break;
-      bioVerify().then(() => {
-        S.people[who] = { creds: [], u: Date.now() };
-        changed(); openSettings(false); toast(`${PERSON[who].name} pode cadastrar o rosto de novo`);
-      }).catch(() => toast('Precisa confirmar que é você.'));
-      break;
-    }
+    case 'sync-now': pull().then(() => openSettings()); break;
+    case 'lock-now': closeSheet(); lockOut(); lsSet('atv.seen', 0); gate(); break;
     case 'theme': lsSet('atv.theme', d.v); applyTheme(); openSettings(false); break;
     case 'invite': {
-      const text = `${d.name}, abre esse link para ver e editar nossas atividades: ${d.link}`;
-      if(navigator.share) navigator.share({ title: 'Atividades', text }).catch(() => {});
-      else navigator.clipboard.writeText(d.link).then(() => toast('Link copiado'));
+      const who = d.v;
+      createInvite(who).then(link => {
+        const text = `${PERSON[who].name}, esse é o seu convite para as atividades da equipe. Abra no seu celular e cadastre seu rosto (vale uma vez): ${link}`;
+        if(navigator.share) navigator.share({ title: 'Convite · Atividades', text }).catch(() => {});
+        else navigator.clipboard.writeText(text).then(() => toast('Convite copiado, mande no WhatsApp'));
+      });
       break;
     }
     // Editor
@@ -989,24 +1076,23 @@ document.addEventListener('keydown', e => {
 function readHash(){
   if(!location.hash) return;
   const h = new URLSearchParams(location.hash.slice(1));
-  if(h.get('k')){ S.key = h.get('k'); lsSet('atv.key', S.key); }
-  if(h.get('eu') && PERSON[h.get('eu')]){ S.me = h.get('eu'); lsSet('atv.me', S.me); }
+  if(h.get('convite')){ ssSet('atv.inv', h.get('convite')); localStorage.removeItem('atv.me'); S.me = null; lockOut(); }
   history.replaceState(null, '', location.pathname + location.search);
 }
 
 document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = I[el.dataset.icon]; });
 applyTheme();
+['atv.key', 'atv.bio', 'atv.bioSkip', 'atv.bioAsked', 'atv.people'].forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
 readHash();
 if(!TITLES[S.view]) S.view = 'hoje';
 if(S.who !== 'todos' && !PERSON[S.who]) S.who = 'todos';
-setSync(S.key ? 'saving' : 'local');
 renderView();
 gate();
 setInterval(() => { if(!document.hidden && !saving && $('#lock').hidden) pull(); }, 30000);
 setInterval(() => { if(!document.hidden && $('#sheet').hidden) refresh(); }, 60000);
 document.addEventListener('visibilitychange', () => {
   if(document.hidden){ if($('#lock').hidden) markSeen(); return; }
-  if($('#lock').hidden && needsUnlock()) gate();
+  if($('#lock').hidden && needsUnlock()){ lockOut(); gate(); }
   else if($('#lock').hidden){ markSeen(); pull(); }
 });
 setInterval(() => { if(!document.hidden && $('#lock').hidden) markSeen(); }, 60000);
