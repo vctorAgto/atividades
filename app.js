@@ -130,7 +130,8 @@ async function fetchRemote(){
       headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + S.key }, cache: 'no-store'
     });
     if(r.status === 404) return { sha: null, items: [] };
-    if(r.status === 401 || r.status === 403) throw new Error('Chave inválida ou sem permissão');
+    if(r.status === 401){ S.key = ''; localStorage.removeItem('atv.key'); gate(); throw new Error('Chave inválida'); }
+    if(r.status === 403) throw new Error('Chave sem permissão');
     if(!r.ok) throw new Error('GitHub respondeu ' + r.status);
     const j = await r.json();
     return { sha: j.sha, items: JSON.parse(b64d(j.content)).items || [] };
@@ -759,6 +760,16 @@ function lockScreen(inner){
   el.hidden = false;
   document.body.classList.add('locked');
 }
+async function checkKey(k){
+  try {
+    const r = await fetch(`${API}?ref=${CFG.branch}&t=${Date.now()}`, { headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + k }, cache: 'no-store' });
+    if(!r.ok && r.status !== 404) return false;
+    // só passa se a chave puder gravar neste repositório
+    const repo = await fetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}`, { headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + k } });
+    const j = await repo.json();
+    return !!(j.permissions && j.permissions.push);
+  } catch(e){ return false; }
+}
 function openApp(){
   $('#lock').hidden = true;
   document.body.classList.remove('locked');
@@ -767,6 +778,21 @@ function openApp(){
   pull();
 }
 async function gate(){
+  // Sem a chave (que vem no link de acesso), o app não abre: é só da equipe.
+  if(!S.key){
+    lockScreen(`<h2>Só da equipe</h2>
+      <p class="muted">Este app é só do Victor, do Vinicius e do Paulo. Para entrar, abra o <b>link de acesso</b> que um deles te mandou.</p>
+      <input class="inp" type="password" id="gateKey" placeholder="ou cole a chave aqui (github_pat_…)" autocomplete="off">
+      <button class="btn primary block" id="gateKeyBtn" style="margin-top:12px">Entrar</button>`);
+    $('#gateKeyBtn').onclick = async () => {
+      const k = $('#gateKey').value.trim();
+      if(!k) return;
+      $('#lockErr').textContent = 'Conferindo…';
+      if(await checkKey(k)){ S.key = k; lsSet('atv.key', k); gate(); }
+      else $('#lockErr').textContent = 'Essa chave não funcionou. Confira e tente de novo.';
+    };
+    return;
+  }
   if(!S.me){
     lockScreen(`<h2>Quem é você?</h2>
       <p class="muted">Escolha seu nome. Fica guardado neste aparelho.</p>

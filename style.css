@@ -398,6 +398,7 @@ input.inp:focus,textarea.inp:focus{outline:none;border-color:var(--accent);box-s
 .lock-box .who-opt{padding:16px 18px;font-size:1.12rem;border-radius:18px;}
 .lock-box .who-grid{gap:12px;}
 .lock .who-grid{text-align:left;}
+.lock-box .inp{font-size:1rem;padding:14px 16px;border-radius:14px;text-align:center;}
 body.locked{overflow:hidden;}
 body.locked .app,body.locked .tabbar{visibility:hidden;}
 .lock-err{color:var(--late);font-size:1rem;min-height:1.2em;margin-top:14px;}
